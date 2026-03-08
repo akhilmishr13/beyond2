@@ -14,7 +14,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 st.set_page_config(
-    page_title="Narrative Engine",
+    page_title="Beyond",
     page_icon="◉",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -138,7 +138,7 @@ def get_signals():
 # =============================================================================
 
 with st.sidebar:
-    st.markdown("### ◉ Narrative Engine")
+    st.markdown("### ◉ Beyond")
     st.caption("Corporate Intelligence")
     
     st.divider()
