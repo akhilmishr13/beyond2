@@ -1,0 +1,173 @@
+# ============================================================================
+# Corporate Narrative Consistency Engine - .gitignore
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Python
+# ----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ----------------------------------------------------------------------------
+# Virtual Environments
+# ----------------------------------------------------------------------------
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+
+# ----------------------------------------------------------------------------
+# IDE and Editor
+# ----------------------------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# ----------------------------------------------------------------------------
+# Jupyter Notebooks
+# ----------------------------------------------------------------------------
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ----------------------------------------------------------------------------
+# Testing
+# ----------------------------------------------------------------------------
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# ----------------------------------------------------------------------------
+# Data Files (Large files should not be committed)
+# ----------------------------------------------------------------------------
+data/raw/
+data/processed/
+data/market_data/
+*.csv
+*.parquet
+*.pickle
+*.pkl
+*.h5
+*.hdf5
+
+# Keep directory structure
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/market_data/.gitkeep
+!data/raw/sec_filings/.gitkeep
+!data/raw/news_articles/.gitkeep
+!data/processed/claims/.gitkeep
+!data/processed/events/.gitkeep
+
+# ----------------------------------------------------------------------------
+# Model Files
+# ----------------------------------------------------------------------------
+models/
+*.pt
+*.pth
+*.onnx
+*.bin
+*.safetensors
+!*.py
+
+# ----------------------------------------------------------------------------
+# Logs and Temporary Files
+# ----------------------------------------------------------------------------
+logs/
+*.log
+*.tmp
+*.temp
+.cache/
+*.cache
+
+# ----------------------------------------------------------------------------
+# Environment and Secrets
+# ----------------------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets.yaml
+secrets.yml
+credentials.json
+
+# ----------------------------------------------------------------------------
+# Database
+# ----------------------------------------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+
+# ----------------------------------------------------------------------------
+# Reports (Generated files)
+# ----------------------------------------------------------------------------
+reports/figures/*.png
+reports/figures/*.pdf
+reports/figures/*.svg
+reports/tables/*.csv
+reports/tables/*.html
+
+# Keep directory structure
+!reports/figures/.gitkeep
+!reports/tables/.gitkeep
+
+# ----------------------------------------------------------------------------
+# OS Generated Files
+# ----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ----------------------------------------------------------------------------
+# Transformers/HuggingFace Cache
+# ----------------------------------------------------------------------------
+.transformers_cache/
+~/.cache/huggingface/
+
+# ----------------------------------------------------------------------------
+# Gradio
+# ----------------------------------------------------------------------------
+flagged/
+gradio_cached_examples/

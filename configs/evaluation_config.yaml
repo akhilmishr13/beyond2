@@ -1,0 +1,306 @@
+# ============================================================================
+# Corporate Narrative Consistency Engine - Evaluation Configuration
+# ============================================================================
+# Configuration for model evaluation, metrics, and analysis settings.
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Temporal Split Configuration
+# ----------------------------------------------------------------------------
+# CRITICAL: Always use chronological splits, never random
+temporal_split:
+  # Split ratios (must sum to 1.0)
+  train_ratio: 0.67
+  val_ratio: 0.16
+  test_ratio: 0.17
+  
+  # Gap between splits to prevent leakage (trading days)
+  gap_days: 5
+  
+  # Validation
+  enforce_chronological: true
+  validate_no_future_leakage: true
+
+# ----------------------------------------------------------------------------
+# Classification Metrics
+# ----------------------------------------------------------------------------
+classification_metrics:
+  # Primary metrics
+  primary:
+    - precision
+    - recall
+    - f1_score
+    - roc_auc
+    - pr_auc  # Precision-Recall AUC
+  
+  # Secondary metrics
+  secondary:
+    - accuracy
+    - balanced_accuracy
+    - matthews_corrcoef
+    - cohen_kappa
+  
+  # Per-class metrics
+  per_class: true
+  
+  # Confidence intervals
+  confidence_intervals:
+    enabled: true
+    method: "bootstrap"
+    n_iterations: 1000
+    confidence_level: 0.95
+
+# ----------------------------------------------------------------------------
+# Decision Metrics
+# ----------------------------------------------------------------------------
+decision_metrics:
+  # Precision at K
+  precision_at_k:
+    - 10
+    - 25
+    - 50
+    - 100
+  
+  # False alarm rate
+  false_alarm_rate:
+    enabled: true
+    threshold_levels:
+      - 0.5
+      - 0.6
+      - 0.7
+      - 0.8
+      - 0.9
+  
+  # Alert volume
+  alert_volume:
+    compute_per_month: true
+    compute_per_company: true
+
+# ----------------------------------------------------------------------------
+# Financial Metrics
+# ----------------------------------------------------------------------------
+financial_metrics:
+  # Return-based metrics
+  returns:
+    - average_return_following_signal
+    - abnormal_return_following_signal
+    - cumulative_abnormal_return
+    - sharpe_ratio
+  
+  # Win rate
+  win_rate:
+    threshold: 0.0  # Return > 0 counts as win
+    
+  # Spread analysis
+  spread:
+    compare_groups:
+      - ["high_contradiction", "low_contradiction"]
+      - ["signal_fired", "no_signal"]
+
+# ----------------------------------------------------------------------------
+# Cost-Weighted Utility
+# ----------------------------------------------------------------------------
+cost_utility:
+  enabled: true
+  
+  # Utility values (adjust based on actual trading costs)
+  weights:
+    true_positive: 1.0      # Correct signal
+    true_negative: 0.1      # Correct no-action
+    false_positive: -0.5    # False alarm (unnecessary action)
+    false_negative: -0.3    # Missed signal (opportunity cost)
+  
+  # Report expected utility
+  compute_expected_utility: true
+
+# ----------------------------------------------------------------------------
+# Signal Decay Analysis
+# ----------------------------------------------------------------------------
+signal_decay:
+  # Time horizons to analyze (trading days)
+  horizons:
+    - 1
+    - 3
+    - 5
+    - 10
+    - 15
+    - 20
+  
+  # Metrics to compute at each horizon
+  metrics:
+    - precision
+    - recall
+    - average_return
+    - win_rate
+  
+  # Visualization
+  plot_decay_curve: true
+  save_path: "reports/figures/signal_decay.png"
+
+# ----------------------------------------------------------------------------
+# Robustness Testing
+# ----------------------------------------------------------------------------
+robustness:
+  # Test by document type
+  by_document_type:
+    enabled: true
+    types:
+      - "8-K"
+      - "10-K"
+      - "10-Q"
+      - "news"
+  
+  # Test by topic
+  by_topic:
+    enabled: true
+    topics:
+      - "guidance"
+      - "projects"
+      - "legal_regulatory"
+      - "supply_chain"
+      - "risk_factors"
+  
+  # Test by time period (time drift)
+  time_drift:
+    enabled: true
+    # Split test set into sub-periods
+    sub_periods: 3
+  
+  # Test by company sector
+  by_sector:
+    enabled: true
+    # Uses company sector metadata
+  
+  # Minimum samples for valid analysis
+  min_samples: 30
+
+# ----------------------------------------------------------------------------
+# Calibration Analysis
+# ----------------------------------------------------------------------------
+calibration:
+  # Enable calibration metrics
+  enabled: true
+  
+  # Metrics
+  metrics:
+    - brier_score
+    - expected_calibration_error
+    - maximum_calibration_error
+  
+  # Confidence bins for reliability diagram
+  n_bins: 10
+  bins:
+    - [0.5, 0.55]
+    - [0.55, 0.6]
+    - [0.6, 0.65]
+    - [0.65, 0.7]
+    - [0.7, 0.75]
+    - [0.75, 0.8]
+    - [0.8, 0.85]
+    - [0.85, 0.9]
+    - [0.9, 0.95]
+    - [0.95, 1.0]
+  
+  # Visualization
+  plot_reliability_diagram: true
+  save_path: "reports/figures/calibration_curve.png"
+
+# ----------------------------------------------------------------------------
+# Statistical Significance Testing
+# ----------------------------------------------------------------------------
+statistical_tests:
+  # Confidence level for all tests
+  confidence_level: 0.95
+  
+  # Tests to perform
+  tests:
+    # Model vs baseline comparison
+    paired_ttest:
+      enabled: true
+      correction: "bonferroni"  # Multiple comparison correction
+    
+    # Bootstrap confidence intervals
+    bootstrap:
+      enabled: true
+      n_iterations: 1000
+      method: "percentile"
+    
+    # Wilcoxon signed-rank test (non-parametric)
+    wilcoxon:
+      enabled: true
+    
+    # Mann-Whitney U test
+    mannwhitneyu:
+      enabled: true
+  
+  # Multiple comparison correction
+  multiple_comparison_correction: "bonferroni"
+
+# ----------------------------------------------------------------------------
+# Error Analysis
+# ----------------------------------------------------------------------------
+error_analysis:
+  # False positive analysis
+  false_positives:
+    enabled: true
+    sample_size: 50
+    attributes_to_log:
+      - contradiction_score
+      - topic
+      - speaker_role
+      - source_type
+      - market_conditions
+  
+  # False negative analysis
+  false_negatives:
+    enabled: true
+    sample_size: 50
+    attributes_to_log:
+      - contradiction_score
+      - topic
+      - speaker_role
+      - source_type
+      - market_conditions
+  
+  # Confusion patterns
+  confusion_patterns:
+    enabled: true
+    analyze_by:
+      - topic
+      - source_type
+      - contradiction_score_bin
+
+# ----------------------------------------------------------------------------
+# Report Generation
+# ----------------------------------------------------------------------------
+reports:
+  # Output formats
+  formats:
+    - csv
+    - html
+  
+  # Tables to generate
+  tables:
+    - baseline_comparison
+    - model_metrics
+    - robustness_by_topic
+    - robustness_by_document
+    - signal_decay_metrics
+    - calibration_metrics
+    - statistical_significance
+  
+  # Figures to generate
+  figures:
+    - roc_curves
+    - precision_recall_curves
+    - signal_decay_curve
+    - calibration_curve
+    - confusion_matrix
+    - feature_importance
+  
+  # Output directory
+  output_dir: "reports"
+  
+  # Naming convention
+  filename_prefix: "evaluation"
+  include_timestamp: true

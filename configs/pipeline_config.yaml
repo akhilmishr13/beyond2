@@ -1,0 +1,216 @@
+# ============================================================================
+# Corporate Narrative Consistency Engine - Pipeline Configuration
+# ============================================================================
+# This file controls the main pipeline behavior including data collection,
+# processing parameters, and analysis settings.
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Target Companies
+# ----------------------------------------------------------------------------
+# List of stock tickers to analyze. Start with a manageable set for POC.
+companies:
+  - AAPL   # Apple Inc.
+  - MSFT   # Microsoft Corporation
+  - GOOGL  # Alphabet Inc.
+  - TSLA   # Tesla Inc.
+  - AMZN   # Amazon.com Inc.
+  - META   # Meta Platforms Inc.
+  - NVDA   # NVIDIA Corporation
+  - JPM    # JPMorgan Chase & Co.
+  - JNJ    # Johnson & Johnson
+  - PFE    # Pfizer Inc.
+
+# ----------------------------------------------------------------------------
+# Lookback Period
+# ----------------------------------------------------------------------------
+# Full 1-year analysis window. DO NOT reduce this for shortcuts.
+lookback:
+  start_date: "2025-03-08"
+  end_date: "2026-03-08"
+  months: 12
+
+# ----------------------------------------------------------------------------
+# SEC Filing Configuration
+# ----------------------------------------------------------------------------
+sec:
+  # Filing types to download
+  filing_types:
+    - "8-K"   # Current reports (material events)
+    - "10-K"  # Annual reports
+    - "10-Q"  # Quarterly reports
+  
+  # Rate limiting (SEC requires max 10 requests/second)
+  rate_limit_per_second: 10
+  
+  # Retry settings
+  max_retries: 3
+  retry_delay_seconds: 5
+  
+  # Sections to extract from filings
+  sections_10k:
+    - "item_1"      # Business
+    - "item_1a"     # Risk Factors
+    - "item_7"      # MD&A
+    - "item_7a"     # Market Risk
+    - "item_8"      # Financial Statements
+  
+  sections_10q:
+    - "part1_item1"  # Financial Statements
+    - "part1_item2"  # MD&A
+    - "part1_item4"  # Controls
+    - "part2_item1"  # Legal Proceedings
+    - "part2_item1a" # Risk Factors
+  
+  sections_8k:
+    - "item_2_02"   # Results of Operations
+    - "item_7_01"   # Regulation FD Disclosure
+    - "item_8_01"   # Other Events
+    - "exhibit_99"  # Press Releases
+
+# ----------------------------------------------------------------------------
+# News Source Configuration
+# ----------------------------------------------------------------------------
+news:
+  # Enable/disable specific sources
+  sources:
+    gdelt:
+      enabled: true
+      # GDELT doesn't require API key
+      max_articles_per_company: 500
+      languages:
+        - "English"
+    
+    newsapi:
+      enabled: true
+      # Requires NEWSAPI_KEY in .env
+      max_articles_per_request: 100
+      # Free tier has 1-month history limit
+      lookback_days: 30
+    
+    rss:
+      enabled: true
+      feeds:
+        - name: "Reuters Business"
+          url: "https://feeds.reuters.com/reuters/businessNews"
+        - name: "Yahoo Finance"
+          url: "https://finance.yahoo.com/news/rssindex"
+        - name: "MarketWatch"
+          url: "https://feeds.marketwatch.com/marketwatch/topstories"
+  
+  # Content extraction settings
+  extraction:
+    min_article_length: 100
+    max_article_length: 50000
+    extract_quotes: true
+    focus_on_ceo_statements: true
+
+# ----------------------------------------------------------------------------
+# Market Data Configuration
+# ----------------------------------------------------------------------------
+market:
+  # Data source
+  source: "yfinance"
+  
+  # Return windows to compute (in trading days)
+  return_windows:
+    - 1   # Next day
+    - 3   # 3 days
+    - 5   # 1 week
+    - 10  # 2 weeks
+  
+  # Benchmark for abnormal returns
+  benchmark_ticker: "SPY"
+  
+  # Reaction thresholds for labeling
+  reaction_thresholds:
+    positive: 0.015   # +1.5%
+    negative: -0.015  # -1.5%
+
+# ----------------------------------------------------------------------------
+# Claim Extraction Configuration
+# ----------------------------------------------------------------------------
+claim_extraction:
+  # LLM provider (anthropic)
+  provider: "anthropic"
+  model: "claude-3-5-sonnet-20241022"
+  
+  # Extraction parameters
+  max_tokens: 4096
+  temperature: 0.0  # Deterministic for reproducibility
+  
+  # Batch processing
+  batch_size: 10
+  max_concurrent_requests: 5
+  
+  # Topic categories for classification
+  topic_categories:
+    - "guidance"           # Revenue/earnings projections
+    - "projects"           # Factory, product launches
+    - "legal_regulatory"   # Lawsuits, investigations
+    - "supply_chain"       # Suppliers, logistics
+    - "capital_expenditure" # Investments, spending
+    - "risk_factors"       # Identified risks
+    - "personnel"          # Executive changes
+    - "customers"          # Customer relationships
+    - "products"           # Product updates
+    - "other"              # Uncategorized
+
+# ----------------------------------------------------------------------------
+# Claim Matching Configuration
+# ----------------------------------------------------------------------------
+claim_matching:
+  # Embedding model
+  embedding_model: "all-mpnet-base-v2"
+  
+  # Similarity threshold for linking claims
+  similarity_threshold: 0.75
+  
+  # Maximum lookback for finding related claims (days)
+  lookback_days: 180
+  
+  # Minimum similarity to consider a match
+  min_similarity: 0.5
+  
+  # Maximum matches per claim
+  max_matches: 10
+
+# ----------------------------------------------------------------------------
+# Contradiction Detection Configuration
+# ----------------------------------------------------------------------------
+contradiction:
+  # NLI model
+  nli_model: "microsoft/deberta-v3-large-mnli"
+  
+  # Batch size for inference
+  batch_size: 32
+  
+  # Score thresholds
+  thresholds:
+    high: 0.8      # Strong contradiction
+    medium: 0.6    # Material change
+    low: 0.3       # Minor shift
+  
+  # Device for inference (auto-detected if not specified)
+  # Options: cuda, mps, cpu
+  device: null
+
+# ----------------------------------------------------------------------------
+# Processing Configuration
+# ----------------------------------------------------------------------------
+processing:
+  # Number of parallel workers
+  num_workers: 4
+  
+  # Logging
+  log_level: "INFO"
+  log_to_file: true
+  log_file: "logs/pipeline.log"
+  
+  # Checkpointing
+  checkpoint_enabled: true
+  checkpoint_interval: 100  # Save every N items
+  
+  # Error handling
+  continue_on_error: true
+  max_errors_before_abort: 50

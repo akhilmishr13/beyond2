@@ -1,0 +1,250 @@
+# ============================================================================
+# Corporate Narrative Consistency Engine - Model Configuration
+# ============================================================================
+# Configuration for all ML models including baselines and the main signal model.
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Feature Engineering
+# ----------------------------------------------------------------------------
+features:
+  # Contradiction features
+  contradiction:
+    - contradiction_score
+    - entailment_score
+    - neutral_score
+    - semantic_similarity
+    - claim_age_days
+  
+  # Source features
+  source:
+    - source_type_encoded       # SEC vs news
+    - document_type_encoded     # 8-K, 10-K, 10-Q, news
+    - speaker_role_encoded      # CEO, CFO, other
+  
+  # Topic features
+  topic:
+    - topic_encoded             # One-hot encoded topic
+    - topic_sensitivity_score   # Historical topic sensitivity
+  
+  # Market context features
+  market_context:
+    - prior_30d_return
+    - prior_30d_volatility
+    - market_return_same_day
+    - sector_return_same_day
+    - volume_ratio  # Current vs average volume
+
+# ----------------------------------------------------------------------------
+# Baseline Models
+# ----------------------------------------------------------------------------
+baselines:
+  # Keyword Rules Baseline
+  keyword_rules:
+    bearish_keywords:
+      - "delay"
+      - "delayed"
+      - "unexpected"
+      - "material weakness"
+      - "terminated"
+      - "termination"
+      - "impairment"
+      - "impaired"
+      - "downgrade"
+      - "suspension"
+      - "suspended"
+      - "write-down"
+      - "write-off"
+      - "litigation"
+      - "investigation"
+      - "decline"
+      - "declined"
+      - "shortfall"
+      - "miss"
+      - "missed"
+      - "below expectations"
+      - "lower than expected"
+      - "revised downward"
+      - "warning"
+      - "caution"
+      - "concern"
+      - "risk"
+      - "uncertainty"
+    
+    bullish_keywords:
+      - "ahead of schedule"
+      - "exceeded"
+      - "exceeds"
+      - "record"
+      - "growth"
+      - "growing"
+      - "expansion"
+      - "expanding"
+      - "approved"
+      - "approval"
+      - "successful"
+      - "success"
+      - "partnership"
+      - "award"
+      - "awarded"
+      - "beat"
+      - "beats"
+      - "above expectations"
+      - "higher than expected"
+      - "revised upward"
+      - "strong"
+      - "robust"
+      - "momentum"
+      - "outperform"
+  
+  # Sentiment Baseline
+  sentiment:
+    model: "ProsusAI/finbert"
+    threshold_positive: 0.6
+    threshold_negative: 0.6
+  
+  # Bag of Words Baseline
+  bow:
+    vectorizer:
+      type: "tfidf"
+      max_features: 5000
+      ngram_range: [1, 2]
+      min_df: 2
+      max_df: 0.95
+    
+    classifiers:
+      - name: "logistic_regression"
+        params:
+          C: 1.0
+          max_iter: 1000
+          class_weight: "balanced"
+      
+      - name: "linear_svm"
+        params:
+          C: 1.0
+          class_weight: "balanced"
+
+# ----------------------------------------------------------------------------
+# Signal Prediction Model (Main Model)
+# ----------------------------------------------------------------------------
+signal_model:
+  # Model type
+  type: "xgboost"
+  
+  # XGBoost parameters
+  xgboost:
+    n_estimators: 500
+    max_depth: 6
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    min_child_weight: 1
+    gamma: 0
+    reg_alpha: 0.1
+    reg_lambda: 1.0
+    scale_pos_weight: 1  # Adjusted based on class imbalance
+    random_state: 42
+    n_jobs: -1
+    early_stopping_rounds: 50
+    eval_metric: "auc"
+  
+  # Alternative: LightGBM
+  lightgbm:
+    n_estimators: 500
+    max_depth: 6
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    min_child_samples: 20
+    reg_alpha: 0.1
+    reg_lambda: 1.0
+    random_state: 42
+    n_jobs: -1
+  
+  # Decision thresholds
+  thresholds:
+    bearish_signal:
+      contradiction_min: 0.7
+      confidence_min: 0.6
+    bullish_signal:
+      contradiction_max: 0.3
+      confidence_min: 0.6
+  
+  # Class weights for imbalanced data
+  class_weights:
+    positive: 1.0
+    negative: 1.0
+    neutral: 0.5
+
+# ----------------------------------------------------------------------------
+# Model Training
+# ----------------------------------------------------------------------------
+training:
+  # Random seed for reproducibility
+  random_state: 42
+  
+  # Cross-validation (time-series aware)
+  cv_folds: 5
+  cv_type: "time_series"  # Uses TimeSeriesSplit
+  
+  # Hyperparameter tuning
+  hyperparameter_tuning:
+    enabled: true
+    method: "optuna"
+    n_trials: 50
+    timeout_seconds: 3600
+  
+  # Early stopping
+  early_stopping:
+    enabled: true
+    patience: 50
+    min_delta: 0.001
+
+# ----------------------------------------------------------------------------
+# Explainability
+# ----------------------------------------------------------------------------
+explainability:
+  # SHAP settings
+  shap:
+    enabled: true
+    max_samples: 1000  # For TreeExplainer
+    plot_types:
+      - "summary"
+      - "bar"
+      - "waterfall"
+  
+  # Feature importance
+  feature_importance:
+    method: "gain"  # Options: gain, weight, cover
+    top_n: 15
+  
+  # Explanation templates
+  templates:
+    contradiction_high: >
+      Strong contradiction detected between {speaker}'s earlier statement 
+      about {topic} and the subsequent {source} disclosure. 
+      Historical analysis shows {historical_rate}% of similar contradictions 
+      preceded {direction} returns.
+    
+    contradiction_medium: >
+      Material change detected in {topic} narrative. 
+      Earlier claim suggested {earlier_direction}, 
+      but recent disclosure indicates {later_direction}.
+    
+    consistency_signal: >
+      Consistent messaging on {topic} from {speaker}. 
+      No contradictions detected in recent disclosures.
+
+# ----------------------------------------------------------------------------
+# Model Persistence
+# ----------------------------------------------------------------------------
+persistence:
+  # Model save directory
+  model_dir: "models"
+  
+  # Save format
+  format: "joblib"  # Options: joblib, pickle
+  
+  # Versioning
+  version_format: "{model_name}_{timestamp}"
+  keep_n_versions: 5
