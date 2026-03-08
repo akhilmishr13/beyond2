@@ -1,21 +1,57 @@
 {
-  "total": 1,
-  "successful": 1,
+  "total": 5,
+  "successful": 5,
   "failed": 0,
   "success_rate": 100.0,
-  "total_duration_minutes": 0.0,
-  "avg_seconds_per_company": 2.1,
-  "start_time": "2026-03-08T15:36:16.330597+00:00",
-  "end_time": "2026-03-08T15:36:18.391153+00:00",
+  "total_duration_minutes": 0.1,
+  "avg_seconds_per_company": 1.7,
+  "start_time": "2026-03-08T15:37:34.678894+00:00",
+  "end_time": "2026-03-08T15:37:42.956434+00:00",
   "results": [
     {
-      "ticker": "FIG",
+      "ticker": "AAPL",
       "success": true,
-      "documents": 6,
+      "documents": 14,
       "claims": 0,
       "contradictions": 0,
       "error": null,
-      "duration_seconds": 2.059943914413452
+      "duration_seconds": 5.076066017150879
+    },
+    {
+      "ticker": "AMZN",
+      "success": true,
+      "documents": 12,
+      "claims": 0,
+      "contradictions": 0,
+      "error": null,
+      "duration_seconds": 5.143509149551392
+    },
+    {
+      "ticker": "TSLA",
+      "success": true,
+      "documents": 18,
+      "claims": 0,
+      "contradictions": 0,
+      "error": null,
+      "duration_seconds": 7.320744037628174
+    },
+    {
+      "ticker": "MSFT",
+      "success": true,
+      "documents": 11,
+      "claims": 0,
+      "contradictions": 0,
+      "error": null,
+      "duration_seconds": 7.543386220932007
+    },
+    {
+      "ticker": "GOOGL",
+      "success": true,
+      "documents": 19,
+      "claims": 0,
+      "contradictions": 0,
+      "error": null,
+      "duration_seconds": 7.7733542919158936
     }
   ]
 }
