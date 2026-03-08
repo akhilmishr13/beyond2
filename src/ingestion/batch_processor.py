@@ -14,7 +14,7 @@ Usage:
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
@@ -31,7 +31,7 @@ class ProcessingResult:
     claims_count: int = 0
     contradictions_count: int = 0
     error: Optional[str] = None
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -41,7 +41,7 @@ class BatchProgress:
     completed: int = 0
     successful: int = 0
     failed: int = 0
-    start_time: datetime = field(default_factory=datetime.utcnow)
+    start_time: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     
     @property
     def percent_complete(self) -> float:
@@ -49,7 +49,7 @@ class BatchProgress:
     
     @property
     def elapsed_seconds(self) -> float:
-        return (datetime.utcnow() - self.start_time).total_seconds()
+        return (datetime.now(timezone.utc) - self.start_time).total_seconds()
     
     @property
     def avg_seconds_per_company(self) -> float:

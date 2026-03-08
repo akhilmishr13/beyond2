@@ -25,7 +25,7 @@ Usage:
 import argparse
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # Add project root to path
@@ -63,25 +63,34 @@ def process_single_company(ticker: str) -> dict:
         "contradictions": 0
     }
     
+    # Date range: 1 year lookback
+    end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    start_date = (datetime.now(timezone.utc) - timedelta(days=365)).strftime("%Y-%m-%d")
+    
     try:
         # 1. Download SEC filings
         sec_downloader = SECDownloader()
         filings = list(sec_downloader.download_filings(
             ticker,
-            filing_types=["8-K", "10-K", "10-Q"]
+            filing_types=["8-K", "10-K", "10-Q"],
+            start_date=start_date,
+            end_date=end_date
         ))
         results["documents"] += len(filings)
+        logger.info(f"{ticker}: Downloaded {len(filings)} SEC filings")
         
         # 2. Fetch market data
         market_fetcher = MarketDataFetcher()
-        prices = market_fetcher.fetch_prices(ticker)
+        prices = market_fetcher.fetch_prices(ticker, start_date, end_date)
+        results["price_records"] = len(prices) if prices is not None else 0
+        logger.info(f"{ticker}: Fetched {results['price_records']} price records")
         
         # 3. For now, return counts (full processing would include claim extraction)
         # In a full implementation, this would:
         # - Parse documents
-        # - Extract claims
-        # - Match claims
-        # - Detect contradictions
+        # - Extract claims using Claude
+        # - Match claims across documents
+        # - Detect contradictions with NLI
         # - Align with market data
         
         return results
@@ -212,7 +221,7 @@ def main():
             logger.info(f"Progress: {progress.percent_complete:.1f}% "
                        f"({progress.completed}/{progress.total})")
     
-    start_time = datetime.utcnow()
+    start_time = datetime.now(timezone.utc)
     
     results = processor.process_companies(
         valid_tickers,
@@ -223,7 +232,7 @@ def main():
     # Save results
     summary = processor.get_summary()
     summary["start_time"] = start_time.isoformat()
-    summary["end_time"] = datetime.utcnow().isoformat()
+    summary["end_time"] = datetime.now(timezone.utc).isoformat()
     summary["results"] = [
         {
             "ticker": r.ticker,
