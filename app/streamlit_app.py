@@ -1,6 +1,6 @@
 """
-Corporate Narrative Consistency Engine - Streamlit Dashboard
-Minimal, polished UI design
+Beyond - Corporate Narrative Intelligence Platform
+Streamlit Dashboard with dynamic company selection
 """
 
 import sys
@@ -12,6 +12,13 @@ import streamlit as st
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
+
+# Import company universe
+try:
+    from src.ingestion.company_universe import CompanyUniverse
+    UNIVERSE_AVAILABLE = True
+except ImportError:
+    UNIVERSE_AVAILABLE = False
 
 st.set_page_config(
     page_title="Beyond",
@@ -80,17 +87,57 @@ st.markdown("""
 
 
 # =============================================================================
-# Data
+# Company Universe Data
+# =============================================================================
+
+@st.cache_resource
+def get_company_universe():
+    """Load the full company universe (~10,000 companies)."""
+    if UNIVERSE_AVAILABLE:
+        universe = CompanyUniverse()
+        universe.load()
+        return universe
+    return None
+
+@st.cache_data
+def get_all_tickers():
+    """Get all available tickers."""
+    universe = get_company_universe()
+    if universe:
+        return universe.get_all_tickers()
+    return ["AAPL", "MSFT", "GOOGL", "TSLA", "AMZN"]
+
+@st.cache_data
+def get_sp500_tickers():
+    """Get S&P 500 tickers."""
+    universe = get_company_universe()
+    if universe:
+        return universe.get_sp500()
+    return ["AAPL", "MSFT", "GOOGL", "TSLA", "AMZN"]
+
+@st.cache_data
+def search_companies(query: str):
+    """Search companies by name or ticker."""
+    universe = get_company_universe()
+    if universe and query:
+        results = universe.search(query)
+        return [(c.ticker, c.name) for c in results]
+    return []
+
+
+# =============================================================================
+# Demo Data (with support for dynamic companies)
 # =============================================================================
 
 @st.cache_data
-def get_companies():
+def get_demo_companies():
+    """Get demo company data."""
     return pd.DataFrame([
-        {"ticker": "AAPL", "name": "Apple Inc.", "sector": "Technology", "docs": 45, "claims": 128, "events": 8},
-        {"ticker": "MSFT", "name": "Microsoft", "sector": "Technology", "docs": 52, "claims": 145, "events": 6},
-        {"ticker": "GOOGL", "name": "Alphabet", "sector": "Technology", "docs": 48, "claims": 132, "events": 5},
-        {"ticker": "TSLA", "name": "Tesla", "sector": "Automotive", "docs": 62, "claims": 189, "events": 12},
-        {"ticker": "AMZN", "name": "Amazon", "sector": "E-commerce", "docs": 55, "claims": 156, "events": 7},
+        {"ticker": "AAPL", "name": "Apple Inc.", "sector": "Technology", "docs": 45, "claims": 128, "events": 8, "status": "processed"},
+        {"ticker": "MSFT", "name": "Microsoft", "sector": "Technology", "docs": 52, "claims": 145, "events": 6, "status": "processed"},
+        {"ticker": "GOOGL", "name": "Alphabet", "sector": "Technology", "docs": 48, "claims": 132, "events": 5, "status": "processed"},
+        {"ticker": "TSLA", "name": "Tesla", "sector": "Automotive", "docs": 62, "claims": 189, "events": 12, "status": "processed"},
+        {"ticker": "AMZN", "name": "Amazon", "sector": "E-commerce", "docs": 55, "claims": 156, "events": 7, "status": "processed"},
     ])
 
 @st.cache_data
@@ -134,6 +181,17 @@ def get_signals():
 
 
 # =============================================================================
+# Session State for Selected Companies
+# =============================================================================
+
+if "selected_companies" not in st.session_state:
+    st.session_state.selected_companies = ["AAPL", "MSFT", "GOOGL", "TSLA", "AMZN"]
+
+if "processing_queue" not in st.session_state:
+    st.session_state.processing_queue = []
+
+
+# =============================================================================
 # Sidebar
 # =============================================================================
 
@@ -145,15 +203,22 @@ with st.sidebar:
     
     page = st.radio(
         "Navigate",
-        ["Overview", "Companies", "Contradictions", "Signals", "Evaluation"],
+        ["Overview", "Company Universe", "Companies", "Contradictions", "Signals", "Evaluation", "Batch Processing"],
         label_visibility="collapsed"
     )
     
     st.divider()
     
-    st.caption("QUICK STATS")
+    # Universe stats
+    universe = get_company_universe()
+    if universe:
+        total_companies = universe.count()
+        st.caption("UNIVERSE")
+        st.metric("Public Companies", f"{total_companies:,}")
+    
+    st.caption("TRACKING")
     col1, col2 = st.columns(2)
-    col1.metric("Companies", "5")
+    col1.metric("Selected", len(st.session_state.selected_companies))
     col2.metric("Alerts", "4", delta="+2")
 
 
@@ -161,17 +226,245 @@ with st.sidebar:
 # Pages
 # =============================================================================
 
-companies = get_companies()
+companies = get_demo_companies()
 contradictions = get_contradictions()
 signals = get_signals()
 
-if page == "Overview":
+
+# -----------------------------------------------------------------------------
+# Company Universe Page (NEW)
+# -----------------------------------------------------------------------------
+if page == "Company Universe":
+    st.title("Company Universe")
+    st.caption("Access all ~10,000 publicly traded companies")
+    
+    universe = get_company_universe()
+    
+    if universe:
+        # Stats
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total Public Companies", f"{universe.count():,}")
+        col2.metric("S&P 500", len(get_sp500_tickers()))
+        col3.metric("Currently Tracking", len(st.session_state.selected_companies))
+        col4.metric("In Queue", len(st.session_state.processing_queue))
+        
+        st.divider()
+        
+        # Search and add companies
+        st.subheader("Search & Add Companies")
+        
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            search_query = st.text_input(
+                "Search by ticker or company name",
+                placeholder="e.g., NVDA, Apple, Bank..."
+            )
+        
+        with col2:
+            preset = st.selectbox(
+                "Quick select",
+                ["Custom", "S&P 500", "Top 100", "Top 50 Mega Caps"]
+            )
+        
+        # Search results
+        if search_query:
+            results = search_companies(search_query)
+            if results:
+                st.caption(f"Found {len(results)} companies")
+                
+                results_df = pd.DataFrame(results, columns=["Ticker", "Name"])
+                results_df["Status"] = results_df["Ticker"].apply(
+                    lambda x: "✓ Tracking" if x in st.session_state.selected_companies else "Add"
+                )
+                
+                st.dataframe(
+                    results_df,
+                    hide_index=True,
+                    use_container_width=True,
+                    height=300
+                )
+                
+                # Add selected companies
+                col1, col2 = st.columns(2)
+                with col1:
+                    add_tickers = st.multiselect(
+                        "Select companies to track",
+                        [r[0] for r in results if r[0] not in st.session_state.selected_companies]
+                    )
+                
+                with col2:
+                    if st.button("Add to Tracking", type="primary"):
+                        st.session_state.selected_companies.extend(add_tickers)
+                        st.success(f"Added {len(add_tickers)} companies")
+                        st.rerun()
+            else:
+                st.info("No companies found matching your search.")
+        
+        # Preset selections
+        if preset != "Custom":
+            st.divider()
+            
+            if preset == "S&P 500":
+                preset_tickers = get_sp500_tickers()
+            elif preset == "Top 100":
+                preset_tickers = get_all_tickers()[:100]
+            else:  # Top 50 Mega Caps
+                preset_tickers = get_sp500_tickers()[:50]
+            
+            st.info(f"{preset}: {len(preset_tickers)} companies")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button(f"Add all {len(preset_tickers)} to tracking"):
+                    new_tickers = [t for t in preset_tickers if t not in st.session_state.selected_companies]
+                    st.session_state.selected_companies.extend(new_tickers)
+                    st.success(f"Added {len(new_tickers)} new companies")
+                    st.rerun()
+            
+            with col2:
+                if st.button(f"Replace with {preset}"):
+                    st.session_state.selected_companies = preset_tickers
+                    st.success(f"Now tracking {len(preset_tickers)} companies")
+                    st.rerun()
+        
+        st.divider()
+        
+        # Currently tracking
+        st.subheader("Currently Tracking")
+        
+        if st.session_state.selected_companies:
+            tracking_data = []
+            for ticker in st.session_state.selected_companies[:50]:  # Show first 50
+                company = universe.get_company(ticker)
+                tracking_data.append({
+                    "Ticker": ticker,
+                    "Name": company.name if company else "Unknown",
+                    "Status": "Processed" if ticker in ["AAPL", "MSFT", "GOOGL", "TSLA", "AMZN"] else "Pending"
+                })
+            
+            tracking_df = pd.DataFrame(tracking_data)
+            st.dataframe(tracking_df, hide_index=True, use_container_width=True)
+            
+            if len(st.session_state.selected_companies) > 50:
+                st.caption(f"Showing 50 of {len(st.session_state.selected_companies)} companies")
+            
+            if st.button("Clear all tracked companies"):
+                st.session_state.selected_companies = []
+                st.rerun()
+        else:
+            st.info("No companies currently tracked. Use the search above to add companies.")
+    
+    else:
+        st.warning("Company universe not available. Using demo data.")
+        st.caption("Install the project dependencies to access the full company universe.")
+
+
+# -----------------------------------------------------------------------------
+# Batch Processing Page (NEW)
+# -----------------------------------------------------------------------------
+elif page == "Batch Processing":
+    st.title("Batch Processing")
+    st.caption("Process multiple companies in parallel")
+    
+    universe = get_company_universe()
+    
+    # Processing configuration
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.subheader("Companies")
+        st.metric("Selected", len(st.session_state.selected_companies))
+        
+        source = st.selectbox(
+            "Company source",
+            ["Currently Tracking", "S&P 500", "Top 100", "All (~10,000)"]
+        )
+        
+        if source == "Currently Tracking":
+            process_tickers = st.session_state.selected_companies
+        elif source == "S&P 500":
+            process_tickers = get_sp500_tickers()
+        elif source == "Top 100":
+            process_tickers = get_all_tickers()[:100]
+        else:
+            process_tickers = get_all_tickers()
+        
+        st.info(f"{len(process_tickers)} companies to process")
+    
+    with col2:
+        st.subheader("Configuration")
+        workers = st.slider("Parallel workers", 1, 20, 5)
+        rate_limit = st.slider("API rate limit (req/sec)", 0.5, 5.0, 2.0)
+    
+    with col3:
+        st.subheader("Estimates")
+        
+        est_time_mins = len(process_tickers) * 30 / workers / 60
+        est_cost = len(process_tickers) * 0.15  # ~$0.15 per company for Claude
+        
+        st.metric("Est. Time", f"{est_time_mins:.1f} min" if est_time_mins < 60 else f"{est_time_mins/60:.1f} hrs")
+        st.metric("Est. API Cost", f"${est_cost:.0f}")
+    
+    st.divider()
+    
+    # Processing status
+    st.subheader("Processing")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("Start Batch Processing", type="primary", disabled=len(process_tickers) == 0):
+            st.warning("To run actual batch processing, use the command line:")
+            st.code(f"""
+# From the project directory:
+python scripts/run_batch_pipeline.py --tickers {' '.join(process_tickers[:5])} --workers {workers}
+
+# Or for S&P 500:
+python scripts/run_batch_pipeline.py --preset sp500 --workers {workers}
+
+# Or for all companies:
+python scripts/run_batch_pipeline.py --all --workers {workers}
+            """)
+    
+    with col2:
+        st.markdown("**Command Line Options:**")
+        st.markdown("""
+        - `--all` - Process all ~10,000 companies
+        - `--preset sp500` - S&P 500 companies
+        - `--top N` - Top N companies
+        - `--workers N` - Parallel workers
+        - `--dry-run` - Preview without processing
+        """)
+    
+    st.divider()
+    
+    # Results preview
+    st.subheader("Sample Preview")
+    st.caption("First 10 companies that would be processed")
+    
+    preview_data = []
+    for ticker in process_tickers[:10]:
+        company = universe.get_company(ticker) if universe else None
+        preview_data.append({
+            "Ticker": ticker,
+            "Company": company.name if company else "Unknown",
+            "CIK": company.cik if company else "-"
+        })
+    
+    st.dataframe(pd.DataFrame(preview_data), hide_index=True, use_container_width=True)
+
+
+# -----------------------------------------------------------------------------
+# Overview Page
+# -----------------------------------------------------------------------------
+elif page == "Overview":
     st.title("Dashboard")
     st.caption("Corporate narrative analysis and contradiction detection")
     
     # Metrics
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Companies", len(companies))
+    col1.metric("Tracking", len(st.session_state.selected_companies))
     col2.metric("Documents", companies['docs'].sum())
     col3.metric("Claims", companies['claims'].sum())
     col4.metric("Contradictions", len(contradictions), delta="+3")
@@ -249,50 +542,59 @@ elif page == "Companies":
     st.title("Company Explorer")
     st.caption("Select a company to view detailed analysis")
     
-    selected = st.selectbox("Select company", companies['ticker'].tolist(), label_visibility="collapsed")
-    company = companies[companies['ticker'] == selected].iloc[0]
+    # Use selected companies from session state
+    available_tickers = [t for t in st.session_state.selected_companies if t in companies['ticker'].tolist()]
+    if not available_tickers:
+        available_tickers = companies['ticker'].tolist()
     
-    st.divider()
+    selected = st.selectbox("Select company", available_tickers, label_visibility="collapsed")
     
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Company", company['name'])
-    col2.metric("Documents", company['docs'])
-    col3.metric("Claims", company['claims'])
-    col4.metric("Contradictions", company['events'])
-    
-    st.divider()
-    
-    st.subheader("Contradiction Events")
-    
-    company_events = [c for c in contradictions if c['ticker'] == selected]
-    
-    if company_events:
-        for c in company_events:
-            with st.container():
-                col1, col2 = st.columns([4, 1])
-                with col1:
-                    st.markdown(f"**{c['topic']}** · {c['date']}")
-                with col2:
-                    st.markdown(f"### {c['score']:.2f}")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown("**Earlier claim**")
-                    st.info(c['earlier']['text'])
-                    st.caption(f"{c['earlier']['source']} · {c['earlier']['date']}")
-                with col2:
-                    st.markdown("**Later claim**")
-                    st.error(c['later']['text'])
-                    st.caption(f"{c['later']['source']} · {c['later']['date']}")
-                
-                col1, col2, col3 = st.columns(3)
-                col1.metric("1D Return", f"{c['return_1d']}%")
-                col2.metric("3D Return", f"{c['return_3d']}%")
-                col3.metric("Signal", c['signal'])
-                
-                st.divider()
+    if selected in companies['ticker'].tolist():
+        company = companies[companies['ticker'] == selected].iloc[0]
+        
+        st.divider()
+        
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Company", company['name'])
+        col2.metric("Documents", company['docs'])
+        col3.metric("Claims", company['claims'])
+        col4.metric("Contradictions", company['events'])
+        
+        st.divider()
+        
+        st.subheader("Contradiction Events")
+        
+        company_events = [c for c in contradictions if c['ticker'] == selected]
+        
+        if company_events:
+            for c in company_events:
+                with st.container():
+                    col1, col2 = st.columns([4, 1])
+                    with col1:
+                        st.markdown(f"**{c['topic']}** · {c['date']}")
+                    with col2:
+                        st.markdown(f"### {c['score']:.2f}")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown("**Earlier claim**")
+                        st.info(c['earlier']['text'])
+                        st.caption(f"{c['earlier']['source']} · {c['earlier']['date']}")
+                    with col2:
+                        st.markdown("**Later claim**")
+                        st.error(c['later']['text'])
+                        st.caption(f"{c['later']['source']} · {c['later']['date']}")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    col1.metric("1D Return", f"{c['return_1d']}%")
+                    col2.metric("3D Return", f"{c['return_3d']}%")
+                    col3.metric("Signal", c['signal'])
+                    
+                    st.divider()
+        else:
+            st.info("No contradiction events found for this company.")
     else:
-        st.info("No contradiction events found for this company.")
+        st.info(f"Data not yet processed for {selected}. Add to batch processing queue.")
 
 
 elif page == "Contradictions":
